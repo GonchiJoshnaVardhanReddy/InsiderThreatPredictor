@@ -1,0 +1,1 @@
+"""Gamification module - cybersecurity challenges and leaderboards."""

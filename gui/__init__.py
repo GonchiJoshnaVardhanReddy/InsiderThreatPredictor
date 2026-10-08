@@ -1,0 +1,1 @@
+"""GUI module - all CustomTkinter pages of the dashboard."""

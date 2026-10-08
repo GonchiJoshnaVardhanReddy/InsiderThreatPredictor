@@ -1,0 +1,1 @@
+"""Response module - automated incident response workflow."""

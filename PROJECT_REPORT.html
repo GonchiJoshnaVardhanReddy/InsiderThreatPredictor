@@ -1,0 +1,1049 @@
+<title>Insider Threat Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/* ------------------------------------------------------------------
+   Insider Threat Predictor — system report
+   Layout: single-column report, sticky section rail on wide screens.
+   Palette is the app's own theme from config/settings.py: ink and
+   accent in light, the real SOC navy in dark.
+   ------------------------------------------------------------------ */
+:root{
+  --bg:#F2F5F9;
+  --surface:#FFFFFF;
+  --surface-2:#E9EEF5;
+  --fg:#0E1828;
+  --fg-soft:#33445C;
+  --muted:#5F7189;
+  --line:#D7E0EB;
+  --line-soft:#E6ECF3;
+  --accent:#0C6E6C;
+  --accent-ink:#0A5755;
+  --accent-soft:#DDEDEC;
+  --code-bg:#E9EEF5;
+  --sev-low:#1B7F47;
+  --sev-med:#96650A;
+  --sev-high:#B33A2B;
+  --sev-crit:#8C2118;
+  --rule:#C3D0DE;
+
+  --display:"Archivo","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,"Courier New",monospace;
+
+  --step--1:0.8125rem;
+  --step-0:1rem;
+  --step-1:1.1875rem;
+  --step-2:1.5rem;
+  --step-3:2rem;
+  --step-4:2.75rem;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B132B;
+    --surface:#1C2541;
+    --surface-2:#16203A;
+    --fg:#EAF0F9;
+    --fg-soft:#C6D2E4;
+    --muted:#94A5BE;
+    --line:#33445F;
+    --line-soft:#27344D;
+    --accent:#5BC0BE;
+    --accent-ink:#86D6D4;
+    --accent-soft:#12303C;
+    --code-bg:#111A31;
+    --sev-low:#4FD98A;
+    --sev-med:#F1C40F;
+    --sev-high:#F07A6B;
+    --sev-crit:#E74C3C;
+    --rule:#33445F;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B132B;
+  --surface:#1C2541;
+  --surface-2:#16203A;
+  --fg:#EAF0F9;
+  --fg-soft:#C6D2E4;
+  --muted:#94A5BE;
+  --line:#33445F;
+  --line-soft:#27344D;
+  --accent:#5BC0BE;
+  --accent-ink:#86D6D4;
+  --accent-soft:#12303C;
+  --code-bg:#111A31;
+  --sev-low:#4FD98A;
+  --sev-med:#F1C40F;
+  --sev-high:#F07A6B;
+  --sev-crit:#E74C3C;
+  --rule:#33445F;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  padding-block:0;
+  padding-inline:16px;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--body);
+  font-size:var(--step-0);
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+p{margin:0}
+ul,ol{margin:0;padding-left:1.1em}
+li{margin-block:0.3em}
+a{color:var(--accent-ink);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+code{
+  font-family:var(--mono);font-size:0.86em;
+  background:var(--code-bg);color:var(--fg-soft);
+  padding:0.1em 0.34em;border-radius:4px;
+  overflow-wrap:anywhere;
+}
+strong{font-weight:600;color:var(--fg)}
+
+/* ---------- masthead ---------- */
+.masthead{
+  max-width:1180px;margin-inline:auto;
+  padding-block:40px 26px;
+  border-bottom:1px solid var(--rule);
+  display:flex;flex-direction:column;gap:18px;
+}
+.eyebrow{
+  font-family:var(--mono);font-size:var(--step--1);font-weight:500;
+  letter-spacing:0.14em;text-transform:uppercase;color:var(--accent-ink);
+}
+.masthead h1{font-size:var(--step-4);font-weight:700;letter-spacing:-0.02em}
+.lede{max-width:64ch;font-size:var(--step-1);color:var(--fg-soft)}
+.facts{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));
+  gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+}
+.fact{background:var(--surface);padding:11px 13px;display:flex;flex-direction:column;gap:1px}
+.fact b{font-family:var(--display);font-size:var(--step-2);font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.fact span{font-family:var(--mono);font-size:0.6875rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- shell ---------- */
+.shell{
+  max-width:1180px;margin-inline:auto;
+  display:grid;grid-template-columns:196px minmax(0,1fr);
+  gap:44px;align-items:start;
+  padding-block:34px 72px;
+}
+.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 22px)}
+.toc h2{
+  font-family:var(--mono);font-size:0.6875rem;font-weight:600;letter-spacing:0.14em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:10px;
+}
+.toc ol{list-style:none;padding:0;display:flex;flex-direction:column;gap:2px}
+.toc a{
+  display:flex;gap:8px;padding:4px 8px;border-radius:6px;
+  font-size:0.8125rem;line-height:1.35;color:var(--fg-soft);text-decoration:none;
+}
+.toc a:hover{background:var(--surface-2);color:var(--fg)}
+.toc a .n{font-family:var(--mono);font-size:0.6875rem;color:var(--muted);padding-top:2px}
+
+main{display:flex;flex-direction:column;gap:46px;min-width:0}
+section{scroll-margin-top:1.25rem;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sec-head{display:flex;flex-direction:column;gap:5px;padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+.sec-num{font-family:var(--mono);font-size:0.75rem;font-weight:500;letter-spacing:0.1em;color:var(--accent-ink)}
+section h2{font-size:var(--step-3);font-weight:600;letter-spacing:-0.015em}
+section h3{font-size:var(--step-1);font-weight:600;margin-top:10px}
+section h4{font-family:var(--mono);font-size:0.75rem;font-weight:600;letter-spacing:0.09em;text-transform:uppercase;color:var(--muted)}
+.prose{max-width:68ch;display:flex;flex-direction:column;gap:12px;color:var(--fg-soft)}
+.prose strong{color:var(--fg)}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:0.875rem;min-width:520px}
+caption{
+  caption-side:top;text-align:left;padding:10px 14px 8px;
+  font-family:var(--mono);font-size:0.6875rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);
+}
+th,td{padding:8px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line-soft)}
+thead th{
+  font-family:var(--mono);font-size:0.6875rem;font-weight:600;letter-spacing:0.07em;
+  text-transform:uppercase;color:var(--muted);background:var(--surface-2);
+  position:sticky;top:0;
+}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+td code{background:transparent;padding:0;font-size:0.8125rem;color:var(--fg-soft)}
+td.k{white-space:nowrap;font-family:var(--mono);font-size:0.8125rem;color:var(--fg)}
+
+/* ---------- pipeline diagram ---------- */
+.flow{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch}
+.stage{
+  flex:1 1 200px;min-width:0;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:12px 13px;display:flex;flex-direction:column;gap:8px;
+}
+.stage h4{margin:0}
+.stage ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:4px}
+.stage li{font-size:0.8125rem;line-height:1.4;color:var(--fg-soft);display:flex;gap:7px;margin:0}
+.stage li::before{content:"—";color:var(--rule);flex:none}
+.stage.funnel{background:var(--accent-soft);border-color:var(--accent)}
+.stage.funnel h4{color:var(--accent-ink)}
+.arrow{
+  flex:0 0 auto;display:grid;place-items:center;
+  font-size:1.25rem;color:var(--accent);padding-inline:2px;
+}
+@media (max-width:760px){
+  .flow{flex-direction:column}
+  .arrow{transform:rotate(90deg);padding-block:2px}
+}
+
+/* ---------- callout ---------- */
+.note{
+  border-left:3px solid var(--accent);background:var(--surface);
+  padding:12px 15px;border-radius:0 8px 8px 0;
+  font-size:0.9375rem;color:var(--fg-soft);max-width:68ch;
+}
+.note.warn{border-left-color:var(--sev-high)}
+.note b{display:block;font-family:var(--mono);font-size:0.6875rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--fg);margin-bottom:3px}
+
+/* ---------- formula / code block ---------- */
+.calc{
+  font-family:var(--mono);font-size:0.8125rem;line-height:1.75;
+  background:var(--code-bg);border:1px solid var(--line);
+  border-radius:10px;padding:14px 16px;margin:0;
+  overflow-x:auto;color:var(--fg-soft);
+}
+.calc b{color:var(--fg);font-weight:600}
+.calc i{color:var(--muted);font-style:normal}
+
+/* ---------- chips ---------- */
+.chip{
+  display:inline-block;font-family:var(--mono);font-size:0.6875rem;font-weight:600;
+  letter-spacing:0.06em;text-transform:uppercase;
+  padding:1px 7px;border-radius:20px;border:1px solid currentColor;white-space:nowrap;
+}
+.sev-LOW{color:var(--sev-low)}
+.sev-MEDIUM{color:var(--sev-med)}
+.sev-HIGH{color:var(--sev-high)}
+.sev-CRITICAL{color:var(--sev-crit)}
+
+/* ---------- weight bars ---------- */
+.bars{display:flex;flex-direction:column;gap:5px;max-width:520px}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 3.6em;gap:10px;align-items:center;font-size:0.8125rem}
+.bar .track{height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.bar .fill{height:100%;border-radius:5px;background:var(--accent)}
+.bar .v{font-family:var(--mono);font-size:0.75rem;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar .nm{font-family:var(--mono);font-size:0.75rem;color:var(--fg-soft);overflow-wrap:anywhere}
+
+/* ---------- module stack ---------- */
+.stack{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tier{background:var(--surface);padding:11px 14px;display:flex;flex-direction:column;gap:6px}
+.tier h4{margin:0}
+.tier p{font-family:var(--mono);font-size:0.75rem;line-height:1.6;color:var(--fg-soft);overflow-wrap:anywhere}
+
+/* ---------- findings ---------- */
+.findings{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.finding{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.finding.blocker{background:color-mix(in srgb, var(--sev-crit) 7%, var(--surface))}
+.f-head{display:flex;flex-wrap:wrap;gap:9px;align-items:baseline}
+.f-head .where{font-family:var(--mono);font-size:0.75rem;color:var(--accent-ink)}
+.f-head .ttl{font-weight:600;font-size:0.9375rem;flex:1 1 12ch;min-width:0}
+.finding p{font-size:0.875rem;color:var(--fg-soft);max-width:70ch}
+
+/* ---------- two-up ---------- */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.cols>div{min-width:0;display:flex;flex-direction:column;gap:7px}
+
+.footer{
+  max-width:1180px;margin-inline:auto;padding-block:22px 40px;
+  border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:0.75rem;color:var(--muted);
+  display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between;
+}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;gap:26px}
+  .toc{position:static;border-bottom:1px solid var(--line-soft);padding-bottom:16px}
+  .toc ol{flex-direction:row;flex-wrap:wrap;gap:5px}
+  .toc a{background:var(--surface);border:1px solid var(--line);font-size:0.75rem;padding:3px 9px;border-radius:20px}
+  .masthead h1{font-size:var(--step-3)}
+  .masthead{padding-block:28px 20px}
+}
+@media (max-width:520px){
+  :root{--step-3:1.625rem;--step-4:2.125rem}
+  .shell{padding-block:24px 52px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+
+<header class="masthead">
+  <p class="eyebrow">System report · v1.0 · local-only</p>
+  <h1>Insider Threat Predictor</h1>
+  <p class="lede">A Windows desktop SOC console that watches a real machine through the OS, turns that
+  activity into a 0–100 risk score and an anomaly score, and drives alerts, incidents and reports from
+  the result. Everything runs locally against one SQLite file.</p>
+  <div class="facts">
+    <div class="fact"><b>3</b><span>layers</span></div>
+    <div class="fact"><b>5</b><span>OS monitors</span></div>
+    <div class="fact"><b>8</b><span>event types</span></div>
+    <div class="fact"><b>7</b><span>ML features</span></div>
+    <div class="fact"><b>10</b><span>tables</span></div>
+    <div class="fact"><b>10</b><span>pages</span></div>
+    <div class="fact"><b>120</b><span>trees</span></div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#s1"><span class="n">01</span><span>What it is</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>How it starts</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>Data flow</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>Risk engine</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>Anomaly model</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>Monitors</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>Data model</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>Interface</span></a></li>
+      <li><a href="#s9"><span class="n">09</span><span>Subsystems</span></a></li>
+      <li><a href="#s10"><span class="n">10</span><span>Settings</span></a></li>
+      <li><a href="#s11"><span class="n">11</span><span>Verified findings</span></a></li>
+      <li><a href="#s12"><span class="n">12</span><span>Plugging in a model</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ============ 1 ============ -->
+    <section id="s1">
+      <div class="sec-head">
+        <span class="sec-num">01</span>
+        <h2>What it is</h2>
+      </div>
+      <div class="prose">
+        <p>The application is organised as three layers, and that split explains almost every design
+        decision in the code:</p>
+        <ul>
+          <li><strong>Layer 1 — real OS monitors.</strong> File system, processes, network, USB devices
+          and the Windows Event Log. These start automatically on launch and are the primary data
+          source.</li>
+          <li><strong>Layer 2 — demo data generator.</strong> Opt-in, clearly labelled, produces synthetic
+          employee activity so the dashboard has something to show on a quiet machine.</li>
+          <li><strong>Layer 3 — analysis and response.</strong> The risk engine, the anomaly model, the
+          sentiment analyser, alerts, incidents and reports. It consumes whatever rows appear in
+          <code>activity_logs</code> and does not care which layer wrote them.</li>
+        </ul>
+        <p>The seam between the layers is a single table. Layers 1 and 2 both write the same row shape,
+        which is why the analysis layer can be swapped, retrained or replaced without touching the
+        collectors — and it is where a different model plugs in later.</p>
+        <p>Stack: Python, CustomTkinter for the desktop UI, matplotlib for charts, SQLite for storage,
+        scikit-learn for the anomaly model, NLTK VADER for sentiment, ReportLab for PDF export,
+        <code>psutil</code>, <code>watchdog</code> and <code>pywin32</code> for the monitors. No network
+        calls; nothing leaves the machine.</p>
+      </div>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section id="s2">
+      <div class="sec-head">
+        <span class="sec-num">02</span>
+        <h2>How it starts</h2>
+      </div>
+      <div class="prose">
+        <p><code>main.py</code> is 57 lines and does four things, in this order:</p>
+      </div>
+      <pre class="calc">db.init_db(seed=True)              <i># 1. create tables, seed settings + 10 employees</i>
+try:
+    anomaly_detector.ensure_trained()  <i># 2. train the model if no bundle exists</i>
+except Exception as exc: ...
+app = Application()                <i># 3. build the window</i>
+app.mainloop()                     <i># 4. hand control to Tk</i></pre>
+      <div class="prose">
+        <p>Inside <code>Application.__init__</code> the order matters. It builds the risk engine (reading
+        saved weights and threshold out of the <code>settings</code> table), then the
+        <code>MonitorManager</code>, then the demo generator, then the ten pages, and only then calls
+        <code>monitors.start_all()</code> and raises the Dashboard. Each monitor gets its own daemon
+        thread.</p>
+        <h3>Threading rules</h3>
+        <p>Every monitor runs on a background thread and calls back into the app when it observes
+        something. Tkinter is not thread-safe, so the callbacks do not touch widgets directly. They
+        marshal through the event loop:</p>
+      </div>
+      <pre class="calc">def _on_monitor_event(self, event):
+    self.after(0, lambda: self._dispatch_monitor_event(event))   <i># onto the main loop</i></pre>
+      <div class="prose">
+        <p><code>_dispatch_monitor_event</code> then fans the event out to four pages — Dashboard, Live
+        Monitoring, AI Risk Prediction and Security Alerts — each of which implements an optional
+        <code>on_monitor_event</code> hook. The demo generator has a parallel path through
+        <code>on_demo_event</code>.</p>
+        <p>The important asymmetry: the monitor path also triggers <code>risk_engine.assess_all()</code>
+        inside <code>MonitorManager</code>. The demo path does not. So in demo-only mode the feed fills
+        up but risk scores never move.</p>
+      </div>
+      <div class="note warn">
+        <b>Launch blocker</b>
+        <code>main.py</code> imports <code>gui.app</code>, which imports <code>gui.live_monitoring</code>.
+        That module has an f-string syntax error on line 167 (nested same-type quotes) that is legal only
+        from Python 3.12 onward. On Python 3.11 the app cannot start at all.
+      </div>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section id="s3">
+      <div class="sec-head">
+        <span class="sec-num">03</span>
+        <h2>Data flow</h2>
+      </div>
+      <div class="prose">
+        <p>Four stages from observation to response. The funnel in the middle is what makes the system
+        pluggable: replace anything downstream of the table and the collectors never notice.</p>
+      </div>
+
+      <div class="flow">
+        <div class="stage">
+          <h4>Collect</h4>
+          <ul>
+            <li>file system — <code>watchdog</code></li>
+            <li>processes — <code>psutil</code></li>
+            <li>network — <code>psutil</code></li>
+            <li>USB — <code>psutil</code></li>
+            <li>Event Log — <code>pywin32</code></li>
+            <li>demo generator</li>
+          </ul>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="stage funnel">
+          <h4>One table</h4>
+          <ul>
+            <li><code>activity_logs</code></li>
+            <li>event row + 7 feature columns</li>
+            <li>~3 rows/sec idle</li>
+          </ul>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="stage">
+          <h4>Analyse</h4>
+          <ul>
+            <li>RiskEngine — rules</li>
+            <li>IsolationForest — anomalies</li>
+            <li>VADER — sentiment</li>
+          </ul>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="stage">
+          <h4>Respond</h4>
+          <ul>
+            <li>alerts + incidents</li>
+            <li>simulated actions</li>
+            <li>CSV + PDF reports</li>
+            <li>dashboard KPIs</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Module layers</h3>
+      <div class="stack">
+        <div class="tier">
+          <h4>Entry</h4>
+          <p>main.py</p>
+        </div>
+        <div class="tier">
+          <h4>Collectors</h4>
+          <p>monitor/base.py · monitor_manager.py · file_system · process · network · usb · eventlog · engine/event_simulator.py</p>
+        </div>
+        <div class="tier">
+          <h4>Storage</h4>
+          <p>database/schema.sql · database/db_manager.py</p>
+        </div>
+        <div class="tier">
+          <h4>Analysis</h4>
+          <p>engine/risk_engine.py · ai/anomaly_detector.py · ai/model_training.py · ai/sentiment_analyzer.py</p>
+        </div>
+        <div class="tier">
+          <h4>Response</h4>
+          <p>response/incident_response.py · gamification/challenges.py · reports/ · utils/helpers.py</p>
+        </div>
+        <div class="tier">
+          <h4>Presentation</h4>
+          <p>gui/app.py + 10 page modules, all sharing gui/theme.py</p>
+        </div>
+      </div>
+      <p class="prose">Imports run downward only, with one exception worth knowing:
+      <code>gui/dashboard.py</code> and <code>gui/live_monitoring.py</code> import the band helpers
+      <code>band_for_score</code> and <code>RISK_BANDS</code> <em>from</em>
+      <code>engine/risk_engine</code> rather than from <code>config.settings</code>, even though
+      <code>risk_engine</code> is itself only re-exporting them.</p>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section id="s4">
+      <div class="sec-head">
+        <span class="sec-num">04</span>
+        <h2>Risk engine</h2>
+      </div>
+      <div class="prose">
+        <p>The engine is rule-based and time-windowed, in <code>engine/risk_engine.py</code>. Each event
+        type carries a weight; only events inside a rolling 60-minute window count; older events are
+        decayed so risk bleeds off instead of staying elevated forever.</p>
+      </div>
+
+      <h4>Weights</h4>
+      <div class="bars">
+        <div class="bar"><span class="nm">privilege_escalation</span><span class="track"><span class="fill" style="width:100%"></span></span><span class="v">18</span></div>
+        <div class="bar"><span class="nm">usb_copy</span><span class="track"><span class="fill" style="width:83%"></span></span><span class="v">15</span></div>
+        <div class="bar"><span class="nm">bulk_data_transfer</span><span class="track"><span class="fill" style="width:83%"></span></span><span class="v">15</span></div>
+        <div class="bar"><span class="nm">restricted_file_access</span><span class="track"><span class="fill" style="width:67%"></span></span><span class="v">12</span></div>
+        <div class="bar"><span class="nm">large_download</span><span class="track"><span class="fill" style="width:56%"></span></span><span class="v">10</span></div>
+        <div class="bar"><span class="nm">failed_login</span><span class="track"><span class="fill" style="width:44%"></span></span><span class="v">8</span></div>
+        <div class="bar"><span class="nm">unusual_login_time</span><span class="track"><span class="fill" style="width:28%"></span></span><span class="v">5</span></div>
+        <div class="bar"><span class="nm">normal_activity</span><span class="track"><span class="fill" style="width:0%"></span></span><span class="v">0</span></div>
+      </div>
+
+      <h4>Formula</h4>
+      <pre class="calc">for each event inside the 60-minute window:
+    decay  = max(0.4, 1 − age_minutes / 60)
+    contribution[type] += weight[type] × decay
+
+score = min(100, Σ contribution[type]
+                 + 1.0 × Σ max(0, count[type] − 3))</pre>
+      <div class="prose">
+        <p>The <code>min(100, …)</code> cap is <code>RISK_SCORE_CAP</code>. The second term is a
+        flood bonus: past three occurrences of any one event type, each extra one adds a flat point, so
+        a burst of low-weight noise can accumulate on its own. The decay floor of <code>0.4</code> means
+        an event never decays below 40% of its weight while still inside the window.</p>
+      </div>
+
+      <h4>Worked example</h4>
+      <pre class="calc">3 × usb_copy          age 10 min   <i>decay 0.833</i>   15 × 0.833 × 3 = 37.5
+1 × privilege_escalation  age 5 min  <i>decay 0.917</i>   18 × 0.917     = 16.5
+flood bonus   max(0, 3−3) + max(0, 1−3) = 0
+                                        ─────────────
+score 54.0  →  <b>HIGH</b>  (50–74)  →  threshold 20 crossed  →  alert + incident</pre>
+
+      <h4>Bands and threshold</h4>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Band</th><th class="num">From</th><th class="num">To</th><th>Meaning in the UI</th></tr></thead>
+          <tbody>
+            <tr><td class="k"><span class="chip sev-LOW">LOW</span></td><td class="num">0</td><td class="num">19</td><td>green — normal</td></tr>
+            <tr><td class="k"><span class="chip sev-MEDIUM">MEDIUM</span></td><td class="num">20</td><td class="num">49</td><td>amber; this is the alert threshold</td></tr>
+            <tr><td class="k"><span class="chip sev-HIGH">HIGH</span></td><td class="num">50</td><td class="num">74</td><td>red</td></tr>
+            <tr><td class="k"><span class="chip sev-CRITICAL">CRITICAL</span></td><td class="num">75</td><td class="num">100</td><td>red</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p>Weights and threshold are editable from the Settings page and persisted as JSON in the
+        <code>settings</code> table, so a restart picks up whatever the operator last saved.</p>
+        <h3>What a pass writes</h3>
+        <p><code>assess_all()</code> loops every user and, per user, calls
+        <code>update_user_risk</code>, then <code>insert_risk_history</code>, then — if the score is at
+        or above the threshold — <code>_maybe_create_alert</code>. That last step reuses any open
+        incident for the same user instead of opening a duplicate, then inserts an alert, links it to the
+        incident, and writes an audit row.</p>
+      </div>
+      <div class="note warn">
+        <b>Analysis blocker</b>
+        Line 182 asks the database module for <code>severity_from_score</code>, which lives in
+        <code>utils/helpers.py</code> and was never re-exported. Any threshold breach therefore raises
+        <code>AttributeError</code> mid-loop. Two consequences: no alert or incident is ever created, and
+        the loop aborts, so users ordered after the triggering one are not scored that pass.
+      </div>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section id="s5">
+      <div class="sec-head">
+        <span class="sec-num">05</span>
+        <h2>Anomaly model</h2>
+      </div>
+      <div class="prose">
+        <p>Alongside the rules sits an unsupervised <code>IsolationForest</code> in
+        <code>ai/model_training.py</code>. It answers a different question: not "did a weighted event
+        fire" but "does this user's aggregate behaviour look unlike everyone else's".</p>
+      </div>
+
+      <h4>Features — one row per user, last 60 minutes</h4>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Feature</th><th>How it is aggregated</th></tr></thead>
+          <tbody>
+            <tr><td class="k">login_hour</td><td>hour of the newest event in the window that carries one</td></tr>
+            <tr><td class="k">failed_login_count</td><td>count of <code>failed_login</code> events</td></tr>
+            <tr><td class="k">files_accessed</td><td>sum of <code>files_accessed</code></td></tr>
+            <tr><td class="k">download_volume_mb</td><td>sum of <code>download_mb</code></td></tr>
+            <tr><td class="k">usb_activity</td><td>count of rows where <code>usb_activity &gt; 0</code></td></tr>
+            <tr><td class="k">privileged_access_count</td><td>count of rows where <code>privileged &gt; 0</code></td></tr>
+            <tr><td class="k">data_transfer_mb</td><td>sum of <code>data_transfer_mb</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p>Everything is aggregated from <code>activity_logs</code>, which is why the same seven columns
+        exist on the event row in the first place. A user with no events in the window becomes an
+        all-zero feature row, not a missing one.</p>
+        <h3>Training</h3>
+        <p>Training data is 800 synthetic "normal employee" rows drawn from fixed distributions
+        (<code>seed=42</code>: login hour normal around 09:00, Poisson failed logins, clipped normals for
+        volumes) concatenated with the real per-user rows. A <code>StandardScaler</code> is fitted, then
+        the forest. The result is persisted as a joblib bundle with four keys —
+        <code>model</code>, <code>scaler</code>, <code>metadata</code>, <code>feature_columns</code> —
+        to <code>models/isolation_forest.joblib</code>.</p>
+      </div>
+
+      <h4>The bundle on disk</h4>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Field</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td class="k">trained_at</td><td>2026-10-08 22:46:52</td></tr>
+            <tr><td class="k">rows_used</td><td class="num">810</td></tr>
+            <tr><td class="k">synthetic_samples</td><td class="num">800</td></tr>
+            <tr><td class="k">real_samples</td><td class="num">10</td></tr>
+            <tr><td class="k">contamination</td><td class="num">0.08</td></tr>
+            <tr><td class="k">n_estimators</td><td class="num">120</td></tr>
+            <tr><td class="k">max_features</td><td class="num">1.0</td></tr>
+            <tr><td class="k">base estimator</td><td><code>ExtraTreeRegressor</code>, <code>splitter="random"</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <b>Worth reading closely</b>
+        <code>real_samples</code> is 10 — one aggregate row per seeded employee. So the model is
+        effectively trained on synthetic data, with the machine's own activity contributing ten
+        summary rows. That is a deliberate cold-start choice, not an accident, but it means anomaly
+        scores are "unlike the synthetic baseline", not "unlike this organisation".
+      </div>
+
+      <h3>Inference contract</h3>
+      <p class="prose"><code>predict_anomalies(user_ids=None)</code> returns one dict per user:</p>
+      <pre class="calc">{
+  "user_id":       42,
+  "user_name":     "Dana Whitfield",
+  "anomaly_score": -0.0812,          <i># decision_function; lower = more anomalous</i>
+  "is_anomaly":    True,             <i># from predict(): -1 anomaly, 1 normal</i>
+  "label":         "ANOMALY",
+  "top_factors":   [ {feature, value, weight, label}, ×3 ],
+  "features":      { 7 raw aggregated values }
+}</pre>
+      <div class="prose">
+        <p>This dict is the entire interface between the model and the rest of the application. Four call
+        sites consume it: the Dashboard's "AI Anomalies" KPI tile, the AI Risk Prediction page, the
+        Settings page's model panel, and the startup pre-train.</p>
+        <h3>How "top factors" is computed</h3>
+        <p><code>_top_contributors</code> averages each tree's <code>feature_importances_</code>, then
+        ranks features by <code>|scaled value| × importance</code> and keeps three. The measured mean
+        importances sum to 1.0 and are led by <code>login_hour</code> (0.219),
+        <code>download_volume_mb</code> (0.213), <code>files_accessed</code> (0.205) and
+        <code>data_transfer_mb</code> (0.199); <code>usb_activity</code> (0.041) and
+        <code>privileged_access_count</code> (0.038) trail.</p>
+        <p>Treat that ranking as a heuristic. The base estimators use
+        <code>splitter="random"</code>, so which feature a split lands on is partly a random choice, and
+        the purity-based importance therefore reflects that rather than how predictive a feature is for
+        this data. The deviation term (<code>|scaled value|</code>) does most of the real work — the
+        importances act as a mild re-weighting on top of it.</p>
+      </div>
+      <div class="note warn">
+        <b>Missing validation</b>
+        <code>predict_anomalies</code> never checks that a requested user exists. Ask for user 99999 and
+        you get a confident-looking <code>NORMAL</code> verdict for "User 99999", built from an all-zero
+        feature row. This is the cause of the one failing test in the suite.
+      </div>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section id="s6">
+      <div class="sec-head">
+        <span class="sec-num">06</span>
+        <h2>Monitors</h2>
+      </div>
+      <div class="prose">
+        <p>Five collectors in <code>monitor/</code>, each a <code>BaseMonitor</code> subclass on its own
+        daemon thread. <code>BaseMonitor</code> supplies the lifecycle
+        (<code>start</code> / <code>stop</code> / <code>is_running</code> / <code>status</code>), the
+        <code>setup</code> → <code>loop</code> → <code>shutdown</code> hooks, and a
+        <code>_run_safe</code> wrapper that catches per-iteration exceptions, records
+        <code>last_error</code> and backs off a second instead of killing the thread.</p>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Key</th><th>Library</th><th>What it watches</th><th>Cadence</th></tr></thead>
+          <tbody>
+            <tr><td class="k">file_system</td><td><code>watchdog</code></td><td>file creation/modification/deletion</td><td>event-driven</td></tr>
+            <tr><td class="k">process_monitor</td><td><code>psutil</code></td><td>new processes, elevated-rights starts</td><td class="num">1.5 s</td></tr>
+            <tr><td class="k">network_monitor</td><td><code>psutil</code></td><td>connections and outbound volume</td><td>poll</td></tr>
+            <tr><td class="k">usb_monitor</td><td><code>psutil</code></td><td>removable/partition changes</td><td>poll</td></tr>
+            <tr><td class="k">eventlog_monitor</td><td><code>pywin32</code></td><td>Windows Security log, with an Application-log fallback</td><td class="num">5 s</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The shared vocabulary</h3>
+      <p class="prose">A monitor's raw observation is translated through <code>RISK_VOCAB</code> in
+      <code>monitor/base.py</code> before it reaches the engine, so the engine only ever sees eight
+      event types. <code>map_event</code> forwards an unrecognised kind as <code>normal_activity</code>
+      rather than dropping it, so unknown observations still appear in the feed.</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Source</th><th>Raw kind</th><th>Event type</th><th class="num">Points</th></tr></thead>
+          <tbody>
+            <tr><td class="k">file_pfs</td><td class="k">large_download</td><td>large_download</td><td class="num">10</td></tr>
+            <tr><td class="k">file_pfs</td><td class="k">restricted_file_access</td><td>restricted_file_access</td><td class="num">12</td></tr>
+            <tr><td class="k">process</td><td class="k">privilege_escalation</td><td>privilege_escalation</td><td class="num">18</td></tr>
+            <tr><td class="k">network</td><td class="k">bulk_data_transfer</td><td>bulk_data_transfer</td><td class="num">15</td></tr>
+            <tr><td class="k">usb</td><td class="k">usb_copy</td><td>usb_copy</td><td class="num">15</td></tr>
+            <tr><td class="k">eventlog</td><td class="k">failed_login</td><td>failed_login</td><td class="num">8</td></tr>
+            <tr><td class="k">eventlog</td><td class="k">unusual_login_time</td><td>unusual_login_time</td><td class="num">5</td></tr>
+            <tr><td class="k">eventlog</td><td class="k">privilege_escalation</td><td>privilege_escalation</td><td class="num">18</td></tr>
+            <tr><td class="k">all</td><td class="k">normal_activity</td><td>normal_activity</td><td class="num">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p>Note that the points here duplicate the engine's weights. The mapping sets
+        <code>risk_points</code> on the event for display, and the engine independently looks the type
+        up in its own weight table. Editing weights in Settings changes the score but not the
+        <code>+N</code> shown in the live feed.</p>
+        <h3>Event handling</h3>
+        <p><code>MonitorManager._handle_event</code> resolves a user (currently always the first row in
+        <code>users</code>, documented in the code as a demo limitation), inserts the activity row,
+        then calls <code>risk_engine.assess_all()</code>. That last call is wrapped in a
+        <code>log.debug</code> — which is why the alert crash above is invisible at runtime.</p>
+      </div>
+      <div class="tw">
+        <table>
+          <caption>Monitor behaviour worth knowing before trusting the feed</caption>
+          <thead><tr><th>Behaviour</th><th>Consequence</th></tr></thead>
+          <tbody>
+            <tr><td>Every event is attributed to <code>users[0]</code></td><td>all real activity lands on one account; per-user scoring is meaningless in Layer 1</td></tr>
+            <tr><td>Event log read uses a fixed offset with no record bookmark</td><td>the newest Security events are re-emitted on every 5-second poll</td></tr>
+            <tr><td>Elevation heuristic treats any <code>system32</code> executable as elevated</td><td>routine service starts score 18 points</td></tr>
+            <tr><td>Removable check accepts a bare filesystem type</td><td>fixed NTFS volumes can be reported as USB copies (15 points)</td></tr>
+            <tr><td><code>assess_all()</code> runs on every event</td><td>full rescan of all activity for all users, per event — quadratic at ~3 events/sec</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section id="s7">
+      <div class="sec-head">
+        <span class="sec-num">07</span>
+        <h2>Data model</h2>
+      </div>
+      <div class="prose">
+        <p>One SQLite file, <code>insider_threat.db</code>, in the project root. <code>schema.sql</code>
+        is applied on every startup with <code>CREATE TABLE IF NOT EXISTS</code>, so it is idempotent.
+        <code>PRAGMA foreign_keys = ON</code> is set on each connection and children cascade from
+        <code>users</code>.</p>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Table</th><th>Holds</th><th>Key columns</th></tr></thead>
+          <tbody>
+            <tr><td class="k">users</td><td>the monitored population</td><td>name, department, role, <code>risk_score</code>, <code>account_status</code>, 3 baseline_*</td></tr>
+            <tr><td class="k">activity_logs</td><td>every observation, and the ML feature inputs</td><td>event_type, risk_points, login_hour, files_accessed, download_mb, usb_activity, privileged, data_transfer_mb</td></tr>
+            <tr><td class="k">risk_history</td><td>one row per user per assessment</td><td>risk_score, explanation</td></tr>
+            <tr><td class="k">alerts</td><td>threshold breaches</td><td>severity, status, incident_id</td></tr>
+            <tr><td class="k">incidents</td><td>case records, auto-opened by the engine</td><td>trigger_score, status, summary</td></tr>
+            <tr><td class="k">response_actions</td><td>the response audit trail</td><td>action_type, performed_by</td></tr>
+            <tr><td class="k">sentiment_history</td><td>VADER results over time</td><td>compound, positive, neutral, negative, label</td></tr>
+            <tr><td class="k">challenge_scores</td><td>training-game results</td><td>participant, challenge, score, correct, total</td></tr>
+            <tr><td class="k">settings</td><td>persisted configuration</td><td>key / value</td></tr>
+            <tr><td class="k">audit_log</td><td>system actions</td><td>actor, action, details</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p>Three indexes: <code>(user_id, timestamp)</code> on <code>activity_logs</code>, and
+        <code>status</code> on both <code>alerts</code> and <code>incidents</code>.</p>
+        <h3>Access pattern</h3>
+        <p><code>db_manager</code> opens a fresh connection per operation via <code>_connect()</code>,
+        with a <code>get_conn()</code> context manager handling commit and rollback. Rows come back as
+        <code>sqlite3.Row</code>. Simple, and safe against cross-thread reuse — but every monitor event
+        pays a connection open, and <code>assess_all</code> opens one per user per pass.</p>
+        <h3>Baselines</h3>
+        <p><code>users</code> carries <code>baseline_login_hour</code>,
+        <code>baseline_daily_downloads</code> and <code>baseline_file_access</code>. They are editable on
+        the User Management page and exported in reports, and the demo generator reads
+        <code>baseline_login_hour</code> to decide what counts as an unusual login time. Neither the risk
+        engine nor the anomaly model uses them: the engine scores against fixed global weights, and the
+        model compares raw aggregates without any per-user normalisation. That is the single biggest
+        conceptual gap between what the schema is shaped for and what the analysis actually does.</p>
+      </div>
+    </section>
+
+    <!-- ============ 8 ============ -->
+    <section id="s8">
+      <div class="sec-head">
+        <span class="sec-num">08</span>
+        <h2>Interface</h2>
+      </div>
+      <div class="prose">
+        <p>A CustomTkinter window, 1450×900, dark SOC theme, DPI-aware on Windows. A persistent 248px
+        sidebar carries six grouped nav sections; the content area holds ten pages, all created at
+        startup and stacked with <code>place()</code>, raised on navigation. Each page may implement
+        <code>on_show()</code>, which the router calls after raising it.</p>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Group</th><th>Page</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Overview</td><td class="k">Dashboard</td><td>KPIs, pie, top-risk bar, 7-day trend, alerts feed</td></tr>
+            <tr><td class="k">Activity</td><td class="k">User Management</td><td>CRUD over monitored users; baselines, status</td></tr>
+            <tr><td class="k">Activity</td><td class="k">Live Monitoring</td><td>streaming feed, 80-row cap, band-coloured rows</td></tr>
+            <tr><td class="k">Intelligence</td><td class="k">AI Risk Prediction</td><td>anomaly table, per-user factors, retrain button</td></tr>
+            <tr><td class="k">Intelligence</td><td class="k">Sentiment Analysis</td><td>VADER scoring of pasted text, history</td></tr>
+            <tr><td class="k">Operations</td><td class="k">Security Alerts</td><td>alert list, acknowledge, resolve</td></tr>
+            <tr><td class="k">Operations</td><td class="k">Automated Response</td><td>incident drill-down + response actions</td></tr>
+            <tr><td class="k">Engagement</td><td class="k">Cyber Challenges</td><td>quiz, scoring, leaderboard</td></tr>
+            <tr><td class="k">Engagement</td><td class="k">Reports</td><td>CSV and PDF export</td></tr>
+            <tr><td class="k">System</td><td class="k">Settings</td><td>weights, threshold, demo interval, model panel</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="prose">
+        <p>Charts are matplotlib figures embedded with <code>FigureCanvasTkAgg</code> and styled by
+        <code>style_dark_axes</code>. Tables are <code>ttk.Treeview</code> restyled through
+        <code>style_treeview</code>, because CustomTkinter does not theme ttk widgets.
+        <code>gui/theme.py</code> is the shared layer: cards, KPI tiles, buttons, entries, section
+        headers and the severity colour map all live there, and the page modules do not repeat any of
+        it.</p>
+        <p>The Dashboard refreshes on a 4-second <code>after</code> loop, with change-detection guards
+        on each chart so an unchanged value does not trigger a redraw. Model inference is the expensive
+        part, so the "AI Anomalies" tile is recomputed at most every 30 seconds regardless of the
+        refresh rate.</p>
+      </div>
+    </section>
+
+    <!-- ============ 9 ============ -->
+    <section id="s9">
+      <div class="sec-head">
+        <span class="sec-num">09</span>
+        <h2>Subsystems</h2>
+      </div>
+      <div class="cols">
+        <div>
+          <h4>Sentiment</h4>
+          <p class="prose"><code>ai/sentiment_analyzer.py</code> scores text with NLTK VADER and falls
+          back to a small built-in lexicon when the VADER corpus is missing. Results persist to
+          <code>sentiment_history</code>. Exposed as a module-level singleton via
+          <code>get_analyzer()</code>.</p>
+        </div>
+        <div>
+          <h4>Incident response</h4>
+          <p class="prose"><code>response/incident_response.py</code> defines five actions —
+          acknowledge, investigate, contain, restore, resolve — with
+          <code>recommended_actions</code> keyed by incident status. Actions mutate application state
+          only. Nothing touches a real account, which is the safety property the README claims and the
+          code honours.</p>
+        </div>
+        <div>
+          <h4>Gamification</h4>
+          <p class="prose"><code>gamification/challenges.py</code> holds the question bank and scoring;
+          the Cyber Challenges page renders it and maintains the leaderboard from
+          <code>challenge_scores</code>.</p>
+        </div>
+        <div>
+          <h4>Reporting</h4>
+          <p class="prose">CSV export writes the raw tables; the PDF path uses ReportLab. Both land in
+          <code>reports/</code>.</p>
+        </div>
+        <div>
+          <h4>Demo generator</h4>
+          <p class="prose"><code>engine/event_simulator.py</code> emits weighted random events on a
+          timer, choosing each event's user and — for unusual-login events — an hour at least four away
+          from that user's baseline.</p>
+        </div>
+        <div>
+          <h4>Helpers</h4>
+          <p class="prose"><code>utils/helpers.py</code> owns the cross-cutting utilities: timestamp
+          formatting, clamping, logging setup, <code>band_for_score</code> and
+          <code>severity_from_score</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 10 ============ -->
+    <section id="s10">
+      <div class="sec-head">
+        <span class="sec-num">10</span>
+        <h2>Settings</h2>
+      </div>
+      <div class="prose">
+        <p>Persisted configuration lives in the <code>settings</code> table as key/value strings.
+        <code>init_db(seed=True)</code> writes the defaults on first run; the risk engine reads
+        <code>risk_weights</code> and <code>risk_threshold</code> back on construction.</p>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Key</th><th>Default</th><th>Read by</th></tr></thead>
+          <tbody>
+            <tr><td class="k">risk_weights</td><td>JSON of the 8 weights</td><td><code>RiskEngine._load_from_db</code></td></tr>
+            <tr><td class="k">risk_threshold</td><td class="num">20</td><td><code>RiskEngine._load_from_db</code></td></tr>
+            <tr><td class="k">sim_interval_ms</td><td class="num">1500</td><td>nothing — see below</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note">
+        <b>Dead key</b>
+        The seeder writes <code>sim_interval_ms</code>, but both <code>gui/app.py</code> and the Settings
+        page read and write <code>demo_interval_ms</code>. The seeded row is never read, and a
+        demo-interval change is not persisted under a key the seeder knows about.
+      </div>
+    </section>
+
+    <!-- ============ 11 ============ -->
+    <section id="s11">
+      <div class="sec-head">
+        <span class="sec-num">11</span>
+        <h2>Verified findings</h2>
+      </div>
+      <div class="prose">
+        <p>Everything below was confirmed by running the code, not by reading it alone. Two are
+        blockers; the rest are ordered by how much they distort what the system appears to do.</p>
+      </div>
+      <div class="findings">
+        <div class="finding blocker">
+          <div class="f-head"><span class="where">gui/live_monitoring.py:167</span><span class="ttl">Launch blocker: f-string syntax error</span><span class="chip sev-CRITICAL">blocker</span></div>
+          <p>A nested f-string reuses single quotes inside a single-quoted f-string. Legal only from
+          Python 3.12; <code>py -3.11 -m compileall gui</code> fails. Since <code>main.py</code> →
+          <code>gui.app</code> → this module, the app cannot start on 3.11 — the version the README
+          targets.</p>
+        </div>
+        <div class="finding blocker">
+          <div class="f-head"><span class="where">engine/risk_engine.py:182</span><span class="ttl">Launch blocker: alerts never fire</span><span class="chip sev-CRITICAL">blocker</span></div>
+          <p><code>db.severity_from_score</code> does not exist on the database module; the function is
+          in <code>utils/helpers.py</code>. Reproduced with a score of 57.99 against a threshold of 20:
+          <code>AttributeError</code>, alerts created 0, incidents 0. The exception also aborts
+          <code>assess_all</code>'s loop, so later users go unscored. Corroborated in the live database:
+          279 activity rows, zero alerts, zero incidents, zero audit rows.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">gui/app.py:285</span><span class="ttl">Demo mode never scores anything</span><span class="chip sev-HIGH">high</span></div>
+          <p><code>_dispatch_demo_event</code> notifies pages but never calls
+          <code>assess_all</code>, unlike the monitor path. In demo-only mode risk scores never change
+          and no alert can ever fire, which contradicts the README walkthrough.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">utils/helpers.py:63</span><span class="ttl">Self-assignment in the default-band path</span><span class="chip sev-HIGH">high</span></div>
+          <p>Inside the <code>bands is None</code> branch, <code>bands = bands</code> should assign
+          <code>RISK_BANDS</code>. Latent today because every caller passes bands explicitly; the first
+          caller that relies on the default gets <code>None.items()</code>.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">ai/model_training.py:186</span><span class="ttl">Unknown user ids produce a verdict</span><span class="chip sev-MEDIUM">medium</span></div>
+          <p>No validation of requested ids, so an unknown id yields a fabricated all-zero feature row
+          and a confident <code>NORMAL</code> label. This is the single failing test,
+          <code>test_predict_for_unknown_user</code>.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">gamification/challenges.py:106<br>gui/gamification.py:205</span><span class="ttl">Every challenge answer is counted twice</span><span class="chip sev-MEDIUM">medium</span></div>
+          <p><code>evaluate_answer</code> inserts a score row under a hardcoded
+          <code>demo_user</code>, and the page inserts a second one. The leaderboard double-counts.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">gui/gamification.py:163</span><span class="ttl">Quiz options are not mutually exclusive</span><span class="chip sev-MEDIUM">medium</span></div>
+          <p>Each radio button gets its own <code>StringVar</code>, so multiple options can appear
+          selected at once. <code>_submit</code> quietly grades the lowest-index selection.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">monitor/monitor_manager.py:123</span><span class="ttl">O(events × users) rescan</span><span class="chip sev-MEDIUM">medium</span></div>
+          <p><code>assess_all()</code> runs on every event. Measured ~3 events/sec while idle, and each
+          pass rescans all activity for all ten users on a fresh connection, per event.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">monitor/eventlog_monitor.py:82</span><span class="ttl">Event log re-emits the newest records</span><span class="chip sev-MEDIUM">medium</span></div>
+          <p>The read uses offset 0 with no record bookmark, so each 5-second poll re-delivers the most
+          recent events and inflates the feed and the scores.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">engine/risk_engine.py:170</span><span class="ttl">risk_history grows without bound</span><span class="chip sev-MEDIUM">medium</span></div>
+          <p>One row per user per assessment, while the reader <code>latest_risk_history</code> is
+          called from nowhere. Live database: 674 history rows against 279 activity rows, and climbing
+          with every event.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">monitor/usb_monitor.py:65</span><span class="ttl">Fixed drives read as USB copies</span><span class="chip sev-LOW">low</span></div>
+          <p>The <code>is_removable</code> check accepts a bare filesystem type
+          (<code>ntfs</code>, <code>vfat</code>…) as sufficient, so internal volumes can score 15
+          points as removable-media use.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">monitor/process_monitor.py</span><span class="ttl">Routine service starts score as escalation</span><span class="chip sev-LOW">low</span></div>
+          <p>Any <code>SYSTEM</code> account or any <code>system32</code> executable counts as
+          <code>privilege_escalation</code> — 18 points for ordinary Windows activity.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">database/db_manager.py:27</span><span class="ttl">Discarded connection and dead key</span><span class="chip sev-LOW">low</span></div>
+          <p>An import-time <code>sqlite3.connect</code> whose result is thrown away, plus a
+          <code>random</code> import with no consumer, and the <code>sim_interval_ms</code> /
+          <code>demo_interval_ms</code> key mismatch described in section 10.</p>
+        </div>
+        <div class="finding">
+          <div class="f-head"><span class="where">README.md</span><span class="ttl">Docs drift from the code</span><span class="chip sev-LOW">low</span></div>
+          <p>Monitor names in the README do not match the keys the code uses, and the walkthrough skips
+          steps 5, 8 and 10. <code>_top_contributors</code>' docstring says top-2; the code takes
+          three.</p>
+        </div>
+      </div>
+      <div class="note">
+        <b>Where to start</b>
+        The two blockers are one-line fixes in different files, and fixing the second one is what
+        actually turns the alert pipeline on for the first time. Everything else is quality, not
+        correctness of the pipeline itself.
+      </div>
+    </section>
+
+    <!-- ============ 12 ============ -->
+    <section id="s12">
+      <div class="sec-head">
+        <span class="sec-num">12</span>
+        <h2>Plugging in a model</h2>
+      </div>
+      <div class="prose">
+        <p>Not started — this section records the seam, for when the trained model is ready.</p>
+        <p>The clean insertion point is <code>ai/anomaly_detector.py</code>. It is already a thin facade
+        over <code>model_training</code>, exposing <code>is_trained</code>, <code>is_available</code>,
+        <code>unavailable_reason</code>, <code>ensure_trained</code>, <code>train</code>,
+        <code>predict_for_all</code>, <code>predict_for_user</code>, <code>model_info</code> and
+        <code>summary</code>. Nothing else in the application imports <code>model_training</code>
+        directly, so swapping what sits behind that facade changes no page code.</p>
+        <p>Its consumers, all of which only read <code>predict_anomalies</code> output and the summary:</p>
+        <ul>
+          <li><code>main.py</code> — startup pre-train</li>
+          <li><code>gui/dashboard.py</code> — the "AI Anomalies" KPI tile, throttled to 30 s</li>
+          <li><code>gui/ai_predictions.py</code> — the main table, factor breakdown, retrain button</li>
+          <li><code>gui/settings_page.py</code> — model status panel and retrain</li>
+        </ul>
+        <h3>Two shapes of change</h3>
+        <p>If the trained artefact is a scikit-learn estimator, the change is small: produce a joblib
+        bundle with the same four keys — <code>model</code>, <code>scaler</code>,
+        <code>metadata</code>, <code>feature_columns</code> — drop it at
+        <code>models/isolation_forest.joblib</code>, and the existing loader picks it up unchanged,
+        provided it consumes the same seven columns in the same order. Features that need different
+        inputs mean editing <code>build_user_features</code> and <code>FEATURE_COLUMNS</code> together,
+        because the stored <code>feature_columns</code> list is what the scaler is applied against.</p>
+        <p>A transformer or LLM checkpoint is a different proposition. It pulls
+        <code>transformers</code>, <code>torch</code> and <code>huggingface_hub</code> into
+        <code>requirements.txt</code>, needs weights present locally to keep the no-network promise, and
+        needs a decision about whether it replaces the IsolationForest or runs beside it — the facade
+        supports either, but the "top factors" explainability the AI page renders is specific to the
+        tree-based path.</p>
+        <p>Two questions will settle which of these it is: what the model was trained to predict, and
+        whether it consumes the seven existing features or its own input.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  <span>Insider Threat Predictor · system report</span>
+  <span>Audited 8 October 2026 · all findings reproduced against the code and live database</span>
+</footer>

@@ -1,0 +1,1 @@
+"""Database module - SQLite storage for users, alerts, incidents, and more."""
