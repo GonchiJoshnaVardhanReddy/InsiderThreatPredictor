@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox
 from typing import List
+from xml.sax.saxutils import escape
 
 import customtkinter as ctk
 
@@ -186,7 +187,8 @@ class ReportsPage(ctk.CTkFrame):
             messagebox.showinfo("Export complete", f"Alerts summary saved to:\n{path}")
 
     # -----------------------------------------------------------
-    def export_pdf(self) -> None:
+    def export_pdf(self) -> Path | None:
+        """Ask for a destination and write the brief. Never raises into Tk."""
         target = filedialog.asksaveasfilename(
             title="Save PDF briefing",
             initialdir=str(REPORTS_DIR),
@@ -195,86 +197,119 @@ class ReportsPage(ctk.CTkFrame):
             filetypes=[("PDF", "*.pdf")],
         )
         if not target:
-            return
+            return None
         try:
-            from reportlab.lib import colors
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib.styles import getSampleStyleSheet
-            from reportlab.platypus import (
-                Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
-            )
-        except ImportError:
+            path = build_security_brief(target)
+        except Exception as exc:
+            # The real exception goes to the log; the analyst gets a readable
+            # message. Without this the traceback landed in Tk's callback and
+            # the export silently did nothing.
+            log.exception("PDF export failed for %s", target)
             messagebox.showerror(
-                "ReportLab not installed",
-                "Install reportlab via `pip install reportlab` to enable PDF export.",
+                "PDF export failed",
+                f"Could not write the security brief to:\n{target}\n\n"
+                f"{type(exc).__name__}: {exc}",
             )
-            return
+            return None
 
-        path = Path(target)
-        doc = SimpleDocTemplate(str(path), pagesize=A4)
-        styles = getSampleStyleSheet()
-        story = []
-        story.append(Paragraph("Insider Threat Predictor — Security Brief", styles["Title"]))
-        story.append(Paragraph(
-            f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            styles["Normal"],
-        ))
-        story.append(Spacer(1, 12))
-
-        users = db.list_users()
-        incidents = db.list_incidents()
-        alerts = db.list_alerts()
-        sev = db.alerts_per_severity()
-        events = db.count_activity()
-        high_risk = sum(1 for u in users if u.get("risk_score", 0) >= 50)
-
-        story.append(Paragraph("Summary", styles["Heading2"]))
-        summary_rows = [
-            ["Metric", "Value"],
-            ["Total users", len(users)],
-            ["High-risk users", high_risk],
-            ["Total events logged", events],
-            ["Total alerts", len(alerts)],
-            ["Alerts (LOW)", sev["LOW"]],
-            ["Alerts (MEDIUM)", sev["MEDIUM"]],
-            ["Alerts (HIGH)", sev["HIGH"]],
-            ["Alerts (CRITICAL)", sev["CRITICAL"]],
-            ["Total incidents", len(incidents)],
-        ]
-        story.append(_pdf_table(summary_rows))
-
-        story.append(Paragraph("Top 10 users", styles["Heading2"]))
-        user_rows = [["Name", "Department", "Risk", "Status"]]
-        for u in sorted(users, key=lambda x: -x.get("risk_score", 0))[:10]:
-            user_rows.append([
-                u["name"], u["department"],
-                f"{u.get('risk_score', 0):.1f}",
-                u.get("account_status", ""),
-            ])
-        story.append(_pdf_table(user_rows))
-
-        story.append(Paragraph("Recent alerts", styles["Heading2"]))
-        alert_rows = [["Time", "User", "Event", "Severity", "Status"]]
-        for a in alerts[:15]:
-            alert_rows.append([
-                str(a.get("created_at", ""))[:19],
-                a.get("user_name") or f"User {a['user_id']}",
-                a.get("event_type", ""),
-                a.get("severity", ""),
-                a.get("status", ""),
-            ])
-        story.append(_pdf_table(alert_rows))
-
-        doc.build(story)
         db.audit("analyst", "export_pdf", str(path))
         self._log(f"PDF saved: {path}")
         messagebox.showinfo("PDF exported", f"Security brief saved to:\n{path}")
+        return path
 
     # -----------------------------------------------------------
     def _log(self, message: str) -> None:
         self.history_box.configure(state="normal")
         self.history_box.insert("0.0", f"{datetime.now():%Y-%m-%d %H:%M:%S} — {message}\n")
         self.history_box.configure(state="disabled")
+
+
+def _esc(value) -> str:
+    """Escape text that goes into a Paragraph.
+
+    ReportLab parses Paragraph content as mini-XML, so a bare `&` or a `<...>`
+    in a name or description is markup, not text. Escaping keeps the report
+    faithful — it never ASCII-folds the content.
+    """
+    return escape("" if value is None else str(value))
+
+
+def build_security_brief(target) -> Path:
+    """Render the PDF security brief to `target` and return the path.
+
+    Deliberately Tk-free so the export can be exercised from a test without a
+    display. Raises RuntimeError when ReportLab is unavailable, and lets any
+    other failure propagate for the caller to report.
+    """
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+    except ImportError as exc:  # pragma: no cover - depends on the install
+        raise RuntimeError(
+            "ReportLab is not installed. Run `pip install reportlab` to "
+            "enable PDF export."
+        ) from exc
+
+    path = Path(target)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    doc = SimpleDocTemplate(str(path), pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+    story.append(Paragraph("Insider Threat Predictor — Security Brief", styles["Title"]))
+    story.append(Paragraph(
+        f"Generated on {_esc(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}",
+        styles["Normal"],
+    ))
+    story.append(Spacer(1, 12))
+
+    users = db.list_users()
+    incidents = db.list_incidents()
+    alerts = db.list_alerts()
+    sev = db.alerts_per_severity()
+    events = db.count_activity()
+    high_risk = sum(1 for u in users if u.get("risk_score", 0) >= 50)
+
+    story.append(Paragraph("Summary", styles["Heading2"]))
+    summary_rows = [
+        ["Metric", "Value"],
+        ["Total users", len(users)],
+        ["High-risk users", high_risk],
+        ["Total events logged", events],
+        ["Total alerts", len(alerts)],
+        ["Alerts (LOW)", sev["LOW"]],
+        ["Alerts (MEDIUM)", sev["MEDIUM"]],
+        ["Alerts (HIGH)", sev["HIGH"]],
+        ["Alerts (CRITICAL)", sev["CRITICAL"]],
+        ["Total incidents", len(incidents)],
+    ]
+    story.append(_pdf_table(summary_rows))
+
+    story.append(Paragraph("Top 10 users", styles["Heading2"]))
+    user_rows = [["Name", "Department", "Risk", "Status"]]
+    for u in sorted(users, key=lambda x: -x.get("risk_score", 0))[:10]:
+        user_rows.append([
+            u["name"], u["department"],
+            f"{u.get('risk_score', 0):.1f}",
+            u.get("account_status", ""),
+        ])
+    story.append(_pdf_table(user_rows))
+
+    story.append(Paragraph("Recent alerts", styles["Heading2"]))
+    alert_rows = [["Time", "User", "Event", "Severity", "Status"]]
+    for a in alerts[:15]:
+        alert_rows.append([
+            str(a.get("created_at", ""))[:19],
+            a.get("user_name") or f"User {a['user_id']}",
+            a.get("event_type", ""),
+            a.get("severity", ""),
+            a.get("status", ""),
+        ])
+    story.append(_pdf_table(alert_rows))
+
+    doc.build(story)
+    return path
 
 
 def _pdf_table(rows: List[List]) -> "Table":

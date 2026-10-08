@@ -634,6 +634,12 @@ python -m unittest discover -s tests    # unit tests
 | 11 | The threshold decision follows the published rule, boundary inclusive |
 | 12 | A threat result creates an alert, an incident and an audit entry, deduplicated |
 
+`tests/test_pdf_report.py` covers the PDF briefing separately: it builds a
+brief against a throwaway database, checks the `%PDF-` signature and `%%EOF`
+terminator, extracts the drawn text and compares it with the database state,
+and asserts that a failing export is reported to the analyst rather than
+raised into the Tk callback.
+
 ---
 
 ## Performance and threading model
@@ -718,8 +724,10 @@ Honest list, in rough order of importance.
 7. **The activity simulator's stored `source` values** remain `demo` /
    `demo_seed` in the database (they display as `simulated` in the UI); renaming
    them would need a data migration for no visible benefit.
-8. **PDF export is untested since `reportlab` resolved to 5.x** rather than the
-   4.x the code was written against.
+8. **PDF export has no test coverage for pathological content.** It is verified
+   against ReportLab 5.0.1 (`tests/test_pdf_report.py`) for normal, empty and
+   non-ASCII data, but very wide tables will run past the page margin rather
+   than paginating.
 9. **Other pre-existing issues** not addressed here because they do not block
    the application: gamification double-insert and a radio-button `StringVar`
    bug; a duplicate re-emission in the event-log monitor; a fixed NTFS volume
